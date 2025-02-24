@@ -6,15 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>智能照片时间模拟器</title>
     <style>
+        /* 基础样式 */
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            margin: 0;
-            padding: 10px;
-            font-size: 14px;
-            background: #f8f8f8;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 12px;
+            background: #f5f5f5;
+            color: #333;
         }
 
         .container {
@@ -23,130 +26,196 @@
         }
 
         h2 {
-            font-size: 1.5rem;
-            margin: 15px 0;
             text-align: center;
+            margin: 20px 0;
+            color: #2c3e50;
+            font-size: 1.8rem;
         }
 
+        /* 文件上传样式 */
+        .upload-wrapper {
+            position: relative;
+            margin: 15px 0;
+        }
+
+        #uploadInput {
+            position: absolute;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+        }
+
+        .upload-label {
+            display: block;
+            width: 100%;
+            padding: 18px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+            font-size: 1.1rem;
+            border: 2px solid transparent;
+        }
+
+        .upload-label:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .upload-label:active {
+            transform: translateY(0);
+        }
+
+        .upload-label::after {
+            content: "📷 点击选择照片";
+        }
+
+        /* 时间段预设 */
         .time-presets {
-            margin: 10px 0;
+            margin: 15px 0;
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
+            gap: 10px;
         }
 
         .time-btn {
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            padding: 15px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s;
-            font-size: 0.9rem;
+            transition: all 0.2s;
             text-align: center;
+            font-size: 0.95rem;
             touch-action: manipulation;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 60px;
         }
 
         .time-btn.selected {
-            border: 2px solid #ff4444;
-            background-color: #ffeaea;
+            border-color: #ff4444;
+            background: #fff0f0;
+            box-shadow: 0 2px 8px rgba(255, 68, 68, 0.1);
         }
 
+        /* 控制区域 */
         .controls {
-            margin: 10px 0;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin: 15px 0;
         }
 
-        label {
-            display: block;
-            margin: 8px 0;
-            color: #666;
-            font-size: 0.9rem;
-        }
-
+        /* 滑动条样式 */
         .slider-container {
-            margin: 12px 0;
-        }
-
-        #preview {
-            width: 100%;
-            height: auto;
-            margin-top: 15px;
-            display: none;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .button {
-            display: inline-block;
-            width: 100%;
-            background-color: #4CAF50;
-            color: white;
-            padding: 12px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            margin: 5px 0;
-            font-size: 0.95rem;
-            touch-action: manipulation;
-        }
-
-        .watermark-control {
-            margin: 12px 0;
-            padding: 8px;
-            background: #f5f5f5;
-            border-radius: 6px;
-        }
-
-        .watermark-control label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-
-        .time-input {
-            margin: 12px 0;
-        }
-
-        #customTime {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            margin-top: 5px;
-            font-size: 0.9rem;
+            margin: 18px 0;
         }
 
         input[type="range"] {
             width: 100%;
             height: 6px;
-            margin: 8px 0;
+            margin: 12px 0;
+            -webkit-appearance: none;
+            background: #eee;
+            border-radius: 3px;
         }
 
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        /* 下载按钮 */
+        .button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px 0;
+        }
+
+        .button:disabled {
+            background: #cccccc !important;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* 时间输入 */
+        .time-input input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-top: 8px;
+            font-size: 1rem;
+        }
+
+        /* 图片预览 */
+        #preview {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: none;
+            margin-top: 20px;
+        }
+
+        /* 响应式布局 */
         @media (min-width: 480px) {
             .time-presets {
                 grid-template-columns: repeat(4, 1fr);
             }
 
-            .button {
-                width: auto;
-                display: inline-block;
+            .upload-label::after {
+                content: "📷 点击或拖拽文件到此区域";
             }
 
-            #uploadInput {
+            .button {
                 width: auto;
+                padding: 12px 25px;
+                display: inline-block;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .time-btn {
+                font-size: 0.85rem;
+                padding: 12px;
+            }
+
+            h2 {
+                font-size: 1.5rem;
             }
         }
     </style>
 </head>
 
 <body>
-    <!-- 保持原有 HTML 结构不变 -->
     <div class="container">
         <h2>智能照片时间模拟器</h2>
+
         <div class="controls">
-            <input type="file" id="uploadInput" accept="image/*" class="button">
+            <div class="upload-wrapper">
+                <input type="file" id="uploadInput" accept="image/*">
+                <label for="uploadInput" class="upload-label"></label>
+            </div>
 
             <div class="time-presets">
                 <div class="time-btn" data-preset="dawn">🌅 清晨</div>
@@ -182,7 +251,7 @@
             </div>
         </div>
 
-        <button onclick="downloadImage()" id="downloadBtn" class="button">下载图片</button>
+        <button onclick="downloadImage()" id="downloadBtn" class="button" disabled>下载图片</button>
         <img id="preview" alt="预览图片">
     </div>
 
@@ -259,6 +328,10 @@
                     image.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
+
+                // 上传成功后启用下载按钮
+                document.getElementById('downloadBtn').disabled = false;
+                document.getElementById('downloadBtn').style.backgroundColor = '#4CAF50';
             }
         });
 
@@ -416,6 +489,10 @@
 
         // 下载功能
         function downloadImage() {
+            if (!originalImage) {
+                alert('请先上传图片');
+                return;
+            }
             const link = document.createElement('a');
             link.download = `smart-photo-${Date.now()}.jpg`;
             link.href = document.getElementById('preview').src;
@@ -488,37 +565,41 @@
 
             if (document.getElementById('complexWatermark').checked) {
                 // 复杂水印样式
-                const padding = 10;
-                const fontSize = Math.max(ctx.canvas.width / 70, 18);
+                // 动态计算水印框尺寸
+                const imgWidth = ctx.canvas.width;
+                const imgHeight = ctx.canvas.height;
+                
+                // 设置水印框为图片宽度的1/5
+                const boxWidth = Math.max(imgWidth / 3, 120); // 最小宽度120px
+                const padding = boxWidth * 0.05; // 内边距按比例计算
+                const lineSpacing = padding * 0.8;
 
-                // 调整行高计算方式（使用 1.5 倍字体大小）
-                const lineHeight = fontSize * 1.5;
+                // 动态计算字体大小
+                let fontSize = boxWidth / 12;
+                fontSize = Math.min(Math.max(fontSize, 12), 24); // 限制字体范围12-24px
 
-                // 测量文字尺寸
+                // 测量文字
                 ctx.font = `bold ${fontSize}px Arial`;
                 const text1 = '实时拍摄';
-                const text2 = dateString;
                 const text1Width = ctx.measureText(text1).width;
-
-                // 测量第二行文字时需要切换字体
+                
                 ctx.font = `${fontSize * 0.8}px Arial`;
+                const text2 = dateString;
                 const text2Width = ctx.measureText(text2).width;
 
-                // 计算实际内容高度（两行文字高度 + 行间距）
-                const contentHeight = fontSize + (fontSize * 0.8) + (padding / 2);
+                // 自动调整框宽度（取两行文字最大宽度）
+                const finalBoxWidth = Math.max(text1Width, text2Width) + padding * 2;
+                const boxHeight = fontSize * 2 + lineSpacing * 3;
 
-                // 更新背景框尺寸计算
-                const boxWidth = Math.max(text1Width, text2Width) + padding * 2;
-                const boxHeight = contentHeight + padding * 2;
-
-                // 绘制位置（右下角）
-                const x = ctx.canvas.width - padding - boxWidth;
-                const y = ctx.canvas.height - padding - boxHeight;
+                // 定位参数
+                const margin = boxWidth * 0.1;
+                const x = imgWidth - finalBoxWidth - margin;
+                const y = imgHeight - boxHeight - margin;
 
                 // 绘制背景框
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
                 ctx.beginPath();
-                ctx.roundRect(x, y, boxWidth, boxHeight, 8);
+                ctx.roundRect(x, y, finalBoxWidth, boxHeight, 8);
                 ctx.fill();
 
                 // 绘制文字
@@ -530,9 +611,9 @@
                 ctx.font = `bold ${fontSize}px Arial`;
                 ctx.fillText(text1, x + padding, y + padding);
 
-                // 第二行文字（小号字体）
+                // 第二行文字
                 ctx.font = `${fontSize * 0.8}px Arial`;
-                ctx.fillText(text2, x + padding, y + padding + lineHeight);
+                ctx.fillText(text2, x + padding, y + padding + fontSize + lineSpacing);
             } else {
                 // 简单水印样式
                 const fontSize = Math.max(ctx.canvas.width / 80, 12);
@@ -545,6 +626,7 @@
 
             ctx.restore();
         }
+
     </script>
 </body>
 
