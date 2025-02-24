@@ -1,1 +1,551 @@
-static For sqz
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>智能照片时间模拟器</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 10px;
+            font-size: 14px;
+            background: #f8f8f8;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .time-presets {
+            margin: 10px 0;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .time-btn {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+            text-align: center;
+            touch-action: manipulation;
+        }
+
+        .time-btn.selected {
+            border: 2px solid #ff4444;
+            background-color: #ffeaea;
+        }
+
+        .controls {
+            margin: 10px 0;
+        }
+
+        label {
+            display: block;
+            margin: 8px 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .slider-container {
+            margin: 12px 0;
+        }
+
+        #preview {
+            width: 100%;
+            height: auto;
+            margin-top: 15px;
+            display: none;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .button {
+            display: inline-block;
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px 0;
+            font-size: 0.95rem;
+            touch-action: manipulation;
+        }
+
+        .watermark-control {
+            margin: 12px 0;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 6px;
+        }
+
+        .watermark-control label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .time-input {
+            margin: 12px 0;
+        }
+
+        #customTime {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            margin: 8px 0;
+        }
+
+        @media (min-width: 480px) {
+            .time-presets {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .button {
+                width: auto;
+                display: inline-block;
+            }
+
+            #uploadInput {
+                width: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 保持原有 HTML 结构不变 -->
+    <div class="container">
+        <h2>智能照片时间模拟器</h2>
+        <div class="controls">
+            <input type="file" id="uploadInput" accept="image/*" class="button">
+
+            <div class="time-presets">
+                <div class="time-btn" data-preset="dawn">🌅 清晨</div>
+                <div class="time-btn" data-preset="noon">☀️ 正午</div>
+                <div class="time-btn" data-preset="dusk">🌇 黄昏</div>
+                <div class="time-btn" data-preset="night">🌙 夜晚</div>
+            </div>
+
+            <button id="randomCrop" class="button">随机剪裁</button>
+            <button id="randomTime" class="button">随机光线</button>
+
+            <div class="watermark-control">
+                <label>
+                    <input type="checkbox" id="complexWatermark" checked>
+                    <span>复杂水印</span>
+                </label>
+            </div>
+
+            <div class="time-input">
+                <label>自定义时间：
+                    <input type="datetime-local" id="customTime">
+                </label>
+            </div>
+
+            <div class="slider-container">
+                <label>亮度：<span id="brightnessValue">100%</span></label>
+                <input type="range" id="brightness" min="20" max="180" value="100">
+            </div>
+
+            <div class="slider-container">
+                <label>色温：<span id="temperatureValue">0%</span></label>
+                <input type="range" id="temperature" min="-100" max="100" value="0">
+            </div>
+        </div>
+
+        <button onclick="downloadImage()" id="downloadBtn" class="button">下载图片</button>
+        <img id="preview" alt="预览图片">
+    </div>
+
+    <script>
+        const ctx = document.createElement('canvas').getContext('2d');
+        let originalImage = null;
+        let currentFilters = { brightness: 1, temperature: 0 };
+        let currentPreset = null;
+        let cropParams = null;
+
+        const MAX_WIDTH = 1920;
+        const MAX_HEIGHT = 1080;
+
+        // 新增图片压缩函数
+        async function compressImage(image) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                let width = image.width;
+                let height = image.height;
+
+                // 计算缩放比例
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                // 设置画布尺寸
+                canvas.width = width;
+                canvas.height = height;
+
+                // 绘制缩放后图片
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(image, 0, 0, width, height);
+
+                // 转换为JPEG格式（质量80%）
+                canvas.toBlob((blob) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const compressedImage = new Image();
+                        compressedImage.onload = () => resolve(compressedImage);
+                        compressedImage.src = reader.result;
+                    };
+                    reader.readAsDataURL(blob);
+                }, 'image/jpeg', 0.8);
+            });
+        }
+
+        // 文件上传处理（修改后）
+        document.getElementById('uploadInput').addEventListener('change', async function (e) {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = async function (event) {
+                    let image = new Image();
+                    image.onload = async () => {
+                        // 自动压缩大图
+                        if (image.width > MAX_WIDTH || image.height > MAX_HEIGHT) {
+                            originalImage = await compressImage(image);
+                        } else {
+                            originalImage = image;
+                        }
+
+                        document.getElementById('preview').style.display = 'block';
+                        resetToDefault();
+                        document.getElementById('downloadBtn').style.display = 'inline-block';
+                    };
+                    image.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+
+
+        // 时间段预设配置
+        const presets = {
+            dawn: { brightness: 0.8, temperature: -30, contrast: 1.1 },
+            noon: { brightness: 1.2, temperature: 10, contrast: 1.0 },
+            dusk: { brightness: 0.9, temperature: 50, contrast: 1.2 },
+            night: { brightness: 0.6, temperature: -50, contrast: 1.3 }
+        };
+
+        // 初始化控件
+        document.querySelectorAll('.time-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const presetKey = this.dataset.preset;
+                document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+
+                if (currentPreset === presetKey) {
+                    currentPreset = null;
+                    resetToDefault();
+                } else {
+                    this.classList.add('selected');
+                    currentPreset = presetKey;
+                    applyPreset(presetKey);
+                }
+            });
+        });
+
+        // 随机剪裁
+        document.getElementById('randomCrop').addEventListener('click', function () {
+            if (!originalImage) return;
+            const width = originalImage.width * 0.9;
+            const height = originalImage.height * 0.9;
+            const maxX = originalImage.width - width;
+            const maxY = originalImage.height - height;
+            cropParams = {
+                x: Math.random() * maxX,
+                y: Math.random() * maxY,
+                width: width,
+                height: height
+            };
+            processImage();
+        });
+
+        // 随机时间段
+        document.getElementById('randomTime').addEventListener('click', function () {
+            if (!currentPreset) {
+                currentFilters = {
+                    brightness: Math.random() * 1.6 + 0.2,
+                    temperature: Math.random() * 200 - 100,
+                    contrast: Math.random() * 0.8 + 0.6
+                };
+            } else {
+                const base = presets[currentPreset];
+                currentFilters = {
+                    brightness: base.brightness + (Math.random() * 0.4 - 0.2),
+                    temperature: base.temperature + (Math.random() * 40 - 20),
+                    contrast: base.contrast + (Math.random() * 0.4 - 0.2)
+                };
+            }
+            updateControls();
+            processImage();
+        });
+
+        // 滤镜更新
+        document.getElementById('brightness').addEventListener('input', updateFilters);
+        document.getElementById('temperature').addEventListener('input', updateFilters);
+
+        function applyPreset(presetKey) {
+            const preset = presets[presetKey];
+            currentFilters = { ...preset };
+            updateControls();
+            processImage();
+        }
+
+        function resetToDefault() {
+            currentFilters = { brightness: 1, temperature: 0, contrast: 1 };
+            cropParams = null;
+            updateControls();
+            processImage();
+        }
+
+        function updateControls() {
+            document.getElementById('brightness').value = currentFilters.brightness * 100;
+            document.getElementById('temperature').value = currentFilters.temperature;
+            document.getElementById('brightnessValue').textContent =
+                Math.round(currentFilters.brightness * 100) + '%';
+            document.getElementById('temperatureValue').textContent =
+                Math.round(currentFilters.temperature) + '%';
+        }
+
+        function updateFilters(e) {
+            const id = e.target.id;
+            const value = parseFloat(e.target.value);
+
+            if (id === 'brightness') {
+                currentFilters.brightness = value / 100;
+                document.getElementById('brightnessValue').textContent = value + '%';
+            }
+            else if (id === 'temperature') {
+                currentFilters.temperature = value;
+                document.getElementById('temperatureValue').textContent = value + '%';
+            }
+
+            processImage();
+        }
+
+        function processImage() {
+            if (!originalImage) return;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = originalImage.width;
+            canvas.height = originalImage.height;
+            const ctx = canvas.getContext('2d');
+
+            // 绘制基础图像
+            if (cropParams) {
+                ctx.drawImage(
+                    originalImage,
+                    cropParams.x, cropParams.y, cropParams.width, cropParams.height,
+                    0, 0, canvas.width, canvas.height
+                );
+            } else {
+                ctx.drawImage(originalImage, 0, 0);
+            }
+
+            // 应用滤镜
+            ctx.filter = `
+                brightness(${currentFilters.brightness})
+                contrast(${currentFilters.contrast})
+                hue-rotate(${currentFilters.temperature * 0.3}deg)
+                saturate(${1 + Math.abs(currentFilters.temperature) / 200})
+            `;
+            ctx.drawImage(canvas, 0, 0);
+
+            // 添加色调叠加
+            if (currentFilters.temperature > 0) {
+                ctx.fillStyle = `rgba(255, 150, 0, ${currentFilters.temperature / 200})`;
+                ctx.globalCompositeOperation = 'overlay';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            else if (currentFilters.temperature < 0) {
+                ctx.fillStyle = `rgba(0, 150, 255, ${Math.abs(currentFilters.temperature) / 200})`;
+                ctx.globalCompositeOperation = 'color';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // 添加水印
+            drawWatermark(ctx);
+
+            document.getElementById('preview').src = canvas.toDataURL();
+        }
+
+        // 下载功能
+        function downloadImage() {
+            const link = document.createElement('a');
+            link.download = `smart-photo-${Date.now()}.jpg`;
+            link.href = document.getElementById('preview').src;
+            link.click();
+        }
+
+        // 在全局变量中添加水印状态
+        let useComplexWatermark = true;
+
+        // 初始化水印控件
+        document.getElementById('complexWatermark').addEventListener('change', function (e) {
+            useComplexWatermark = e.target.checked;
+            processImage();
+        });
+
+        // 初始化时间输入框
+        function initTimeInput() {
+            const timeInput = document.getElementById('customTime');
+            const now = new Date();
+
+            // 设置默认值为当前时间（兼容性处理）
+            const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                .toISOString()
+                .slice(0, 16);
+            timeInput.value = localDateTime;
+
+            // 添加输入监听
+            timeInput.addEventListener('change', processImage);
+        }
+
+        // 修改后的水印日期获取函数
+        function getDisplayTime() {
+            const timeInput = document.getElementById('customTime');
+
+            try {
+                // 验证输入时间有效性
+                const selectedDate = new Date(timeInput.value);
+                if (isNaN(selectedDate.getTime())) {
+                    throw new Error('无效时间');
+                }
+                return selectedDate;
+            } catch (e) {
+                // 无效时间时返回当前时间
+                return new Date();
+            }
+        }
+
+        // 在页面初始化时调用
+        window.addEventListener('DOMContentLoaded', () => {
+            initTimeInput();
+        });
+
+        // 修改后的水印绘制函数
+        function drawWatermark(ctx) {
+            const dateOptions = {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            const dateString = getDisplayTime().toLocaleString('zh-CN', dateOptions);
+
+            // 重置画布状态确保不受滤镜影响
+            ctx.save();
+            ctx.filter = 'none'; // 强制重置滤镜
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'source-over';
+
+            if (document.getElementById('complexWatermark').checked) {
+                // 复杂水印样式
+                const padding = 10;
+                const fontSize = Math.max(ctx.canvas.width / 70, 18);
+
+                // 调整行高计算方式（使用 1.5 倍字体大小）
+                const lineHeight = fontSize * 1.5;
+
+                // 测量文字尺寸
+                ctx.font = `bold ${fontSize}px Arial`;
+                const text1 = '实时拍摄';
+                const text2 = dateString;
+                const text1Width = ctx.measureText(text1).width;
+
+                // 测量第二行文字时需要切换字体
+                ctx.font = `${fontSize * 0.8}px Arial`;
+                const text2Width = ctx.measureText(text2).width;
+
+                // 计算实际内容高度（两行文字高度 + 行间距）
+                const contentHeight = fontSize + (fontSize * 0.8) + (padding / 2);
+
+                // 更新背景框尺寸计算
+                const boxWidth = Math.max(text1Width, text2Width) + padding * 2;
+                const boxHeight = contentHeight + padding * 2;
+
+                // 绘制位置（右下角）
+                const x = ctx.canvas.width - padding - boxWidth;
+                const y = ctx.canvas.height - padding - boxHeight;
+
+                // 绘制背景框
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.beginPath();
+                ctx.roundRect(x, y, boxWidth, boxHeight, 8);
+                ctx.fill();
+
+                // 绘制文字
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+
+                // 第一行文字
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.fillText(text1, x + padding, y + padding);
+
+                // 第二行文字（小号字体）
+                ctx.font = `${fontSize * 0.8}px Arial`;
+                ctx.fillText(text2, x + padding, y + padding + lineHeight);
+            } else {
+                // 简单水印样式
+                const fontSize = Math.max(ctx.canvas.width / 80, 12);
+                ctx.font = `${fontSize}px Arial`;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(dateString, ctx.canvas.width - 10, ctx.canvas.height - 10);
+            }
+
+            ctx.restore();
+        }
+    </script>
+</body>
+
+</html>
